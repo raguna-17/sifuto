@@ -4,7 +4,7 @@ from typing import List
 
 from app.db import get_db
 from app.models import User
-from app.schemas import ApplicationRead
+from app.schemas import ApplicationRead, ApplicationCreateRequest
 from app.auth import get_current_user
 from app.services import application_service
 
