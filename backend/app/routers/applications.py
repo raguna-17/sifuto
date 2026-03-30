@@ -42,7 +42,7 @@ async def get_application(
 # -----------------
 # 応募作成（会社名＋業界＋ポジションで送信）
 # -----------------
-@router.post("/", status_code=201)
+@router.post("/", response_model=ApplicationRead, status_code=201)
 async def create_application(
     payload: ApplicationCreateRequest,
     db: AsyncSession = Depends(get_db),
