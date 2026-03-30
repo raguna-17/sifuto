@@ -18,7 +18,7 @@ async def get_user_applications(
 ):
     result = await db.execute(
         select(Application)
-        .options(selectinload(Application.notes))
+        .options(selectinload(Application.company))  # ← 修正
         .where(Application.user_id == current_user.id)
     )
     return result.scalars().all()
@@ -34,7 +34,7 @@ async def get_user_application(
 ):
     result = await db.execute(
         select(Application)
-        .options(selectinload(Application.notes))
+        .options(selectinload(Application.company))  # ← 修正
         .where(
             Application.id == application_id,
             Application.user_id == current_user.id
@@ -42,7 +42,10 @@ async def get_user_application(
     )
     app = result.scalars().first()
     if not app:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
     return app
 
 
@@ -50,15 +53,18 @@ async def get_user_application(
 # 応募作成
 # -----------------
 async def create_user_application(
-    company_data: dict,   # {"name": ..., "industry": ...}
+    company_data: dict,
     position: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if not company_data or not position:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Company data and position are required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company data and position are required"
+        )
 
-    # 会社作成（既存チェック不要）
+    # 会社作成
     company = Company(**company_data)
     db.add(company)
     await db.commit()
@@ -88,10 +94,10 @@ async def create_user_application(
     await db.commit()
     await db.refresh(new_app)
 
-    # 応募＋notesを再取得して返す
+    # 応募＋companyを再取得して返す
     result = await db.execute(
         select(Application)
-        .options(selectinload(Application.notes))
+        .options(selectinload(Application.company))  # ← 修正
         .where(Application.id == new_app.id)
     )
     return result.scalars().first()
