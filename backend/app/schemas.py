@@ -68,6 +68,11 @@ class ApplicationRead(ApplicationBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ApplicationSimple(BaseModel):
+    id: int
+    position: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 # -----------------
 # Company
