@@ -49,13 +49,13 @@ async def create_application(
     current_user: User = Depends(get_current_user)
 ):
     return await application_service.create_user_application(
+        db=db,
+        user=current_user,
         company_data={
             "name": payload.company_name,
             "industry": payload.industry
         },
-        position=payload.position,
-        db=db,
-        current_user=current_user
+        position=payload.position
     )
 
 
