@@ -56,7 +56,7 @@ async def create_user_application(db: AsyncSession, user, company_data: dict, po
     company_name = company_data.get("name", "").strip()  # 空文字も消す
     if not company_data or not position or not company_name:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,  # 422に統一
             detail="Company name and position are required"
         )
 
