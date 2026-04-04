@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -53,6 +54,11 @@ async def create_company(
 ):
     try:
         return await company_service.create_company(db, company.model_dump())
+    except IntegrityError as e:
+        # 重複などの DB 一意制約違反
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Company already exists")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create company: {str(e)}")
 
