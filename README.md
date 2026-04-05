@@ -10,7 +10,7 @@
 - API ドキュメント: [https://mensetu-bakku.onrender.com/docs]
 
 
-https://www.youtube.com/shorts/ugAJGbqNh-8
+[デモ動画を見る](https://www.youtube.com/shorts/ugAJGbqNh-8)
 
  
 
