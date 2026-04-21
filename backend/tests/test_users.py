@@ -1,5 +1,5 @@
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from app.main import app
 
 
@@ -11,7 +11,12 @@ BASE_URL = "http://test"
 # -------------------------
 @pytest.mark.asyncio
 async def test_register_user_success():
-    async with AsyncClient(app=app, base_url=BASE_URL) as ac:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url=BASE_URL,
+    ) as ac:
         res = await ac.post(
             "/users/register",
             json={
@@ -33,7 +38,12 @@ async def test_register_user_success():
 # -------------------------
 @pytest.mark.asyncio
 async def test_register_duplicate_email():
-    async with AsyncClient(app=app, base_url=BASE_URL) as ac:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url=BASE_URL,
+    ) as ac:
         # 1回目
         await ac.post(
             "/users/register",
@@ -61,7 +71,13 @@ async def test_register_duplicate_email():
 # -------------------------
 @pytest.mark.asyncio
 async def test_login_success():
-    async with AsyncClient(app=app, base_url=BASE_URL) as ac:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url=BASE_URL,
+    ) as ac:
+
         await ac.post(
             "/users/register",
             json={
@@ -90,7 +106,13 @@ async def test_login_success():
 # -------------------------
 @pytest.mark.asyncio
 async def test_login_fail_wrong_password():
-    async with AsyncClient(app=app, base_url=BASE_URL) as ac:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url=BASE_URL,
+    ) as ac:
+
         await ac.post(
             "/users/register",
             json={
@@ -115,7 +137,13 @@ async def test_login_fail_wrong_password():
 # -------------------------
 @pytest.mark.asyncio
 async def test_get_me_success():
-    async with AsyncClient(app=app, base_url=BASE_URL) as ac:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url=BASE_URL,
+    ) as ac:
+
         # register
         await ac.post(
             "/users/register",
@@ -151,7 +179,13 @@ async def test_get_me_success():
 # -------------------------
 @pytest.mark.asyncio
 async def test_get_me_unauthorized():
-    async with AsyncClient(app=app, base_url=BASE_URL) as ac:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url=BASE_URL,
+    ) as ac:
+    
         res = await ac.get("/users/me")
 
     assert res.status_code == 401
