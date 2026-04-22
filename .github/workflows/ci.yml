@@ -26,11 +26,12 @@ jobs:
           --health-cmd="pg_isready -U testuser -d testdb"
           --health-interval=5s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=20
 
     env:
       DATABASE_URL: postgresql+asyncpg://testuser:testpass@postgres:5432/testdb
       SECRET_KEY: testsecrethghggugugyy
+      PYTHONUNBUFFERED: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -39,28 +40,37 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest-cov pytest-asyncio httpx alembic asyncpg
+          pip install pytest pytest-asyncio httpx alembic asyncpg
 
-      - name: Debug DNS
+      # -------------------------
+      # DNS確認（ここ重要）
+      # -------------------------
+      - name: Wait for Postgres (service DNS)
         run: |
-          getent hosts postgres || true
-          ping -c 2 postgres || true
-
-      - name: Wait for Postgres
-        run: |
-          for i in {1..30}; do
-            pg_isready -h postgres -U testuser -d testdb && break
+          echo "waiting postgres service..."
+          for i in {1..60}; do
+            pg_isready -h postgres -U testuser -d testdb && echo "READY" && break
             echo "waiting..."
             sleep 2
           done
-          
-      # ★migrationはDB ready後に実行
+
+      - name: Verify DNS resolution
+        run: |
+          getent hosts postgres
+
+      # -------------------------
+      # Migration
+      # -------------------------
       - name: Run migrations
         run: alembic upgrade head
 
+      # -------------------------
+      # Tests
+      # -------------------------
       - name: Run tests
-        run: pytest 
+        run: pytest -q
