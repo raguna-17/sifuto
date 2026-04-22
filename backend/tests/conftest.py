@@ -7,19 +7,12 @@ from app.db import Base, get_db
 import os
 
 
-# -----------------------------------
-# 環境変数は「読むだけ」
-# -----------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-
-# -----------------------------------
-# テスト専用Engine（本番と完全分離）
-# -----------------------------------
 test_engine = create_async_engine(
     DATABASE_URL,
-    echo=False,
     future=True,
+    pool_pre_ping=True,
 )
 
 TestingSessionLocal = async_sessionmaker(
@@ -29,9 +22,9 @@ TestingSessionLocal = async_sessionmaker(
 )
 
 
-# -----------------------------------
-# DB初期化（テスト全体で1回）
-# -----------------------------------
+# -------------------------
+# DB初期化
+# -------------------------
 @pytest.fixture(scope="session", autouse=True)
 async def setup_db():
     async with test_engine.begin() as conn:
@@ -43,23 +36,14 @@ async def setup_db():
         await conn.run_sync(Base.metadata.drop_all)
 
 
-# -----------------------------------
-# DBセッション（各テストごと）
-# -----------------------------------
+# -------------------------
+# 重要修正：毎リクエストで新session
+# -------------------------
 @pytest.fixture
-async def db_session():
-    async with TestingSessionLocal() as session:
-        yield session
-
-
-# -----------------------------------
-# FastAPI Test Client
-# -----------------------------------
-@pytest.fixture
-async def client(db_session):
-    # DI override
+async def client():
     async def override_get_db():
-        yield db_session
+        async with TestingSessionLocal() as session:
+            yield session   # ←ここ重要（毎回新規）
 
     app.dependency_overrides[get_db] = override_get_db
 
@@ -71,5 +55,4 @@ async def client(db_session):
     ) as ac:
         yield ac
 
-    # cleanup（必ず戻す）
     app.dependency_overrides.clear()
