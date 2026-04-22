@@ -11,7 +11,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 # ユーザー登録
-@router.post("/register", response_model=schema.UserResponse)
+@router.post("/register", response_model=schema.UserResponse, status_code=201)
 async def register_user(
     user_in: schema.UserCreate,
     db: AsyncSession = Depends(get_db),
@@ -32,12 +32,13 @@ async def login_user(
         password=user_in.password,
     )
 
-    if not user:
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
+    # トークン生成（subはstring固定）
     access_token = create_access_token({"sub": str(user.id)})
 
     return {

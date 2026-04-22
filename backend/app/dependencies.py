@@ -15,6 +15,7 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> User:
 
+    # トークン検証
     try:
         payload = decode_access_token(token)
     except Exception:
@@ -31,21 +32,23 @@ async def get_current_user(
             detail="Invalid token payload",
         )
 
+    # int変換
     try:
         user_id = int(user_id)
-    except ValueError:
+    except (ValueError, TypeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid user id in token",
         )
 
+    # DB取得（ここ少し改善）
     result = await db.execute(
         select(User).where(User.id == user_id)
     )
 
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()   # ← ここ変更
 
-    if not user:
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -58,7 +61,7 @@ async def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
 
-    if not current_user.is_active:
+    if not getattr(current_user, "is_active", True):  # ← 安全化
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",
