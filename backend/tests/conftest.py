@@ -1,12 +1,12 @@
-import asyncio
 import pytest
+import asyncio
 from httpx import AsyncClient, ASGITransport
 
 from app.main import app
 from app.db.session import get_db, AsyncSessionLocal
 
 
-# event loop（これ残す）
+# pytest-asyncio用（安定化）
 @pytest.fixture
 def event_loop():
     loop = asyncio.new_event_loop()
@@ -14,6 +14,7 @@ def event_loop():
     loop.close()
 
 
+# DB override（FastAPI依存統一）
 async def override_get_db():
     async with AsyncSessionLocal() as session:
         yield session
@@ -26,12 +27,13 @@ def override_dependencies():
     app.dependency_overrides.clear()
 
 
-# ⭐ここが重要：async fixtureやめる
+# async client（pytest-asyncio前提）
 @pytest.fixture
-def client():
+async def client():
     transport = ASGITransport(app=app)
 
-    return AsyncClient(
+    async with AsyncClient(
         transport=transport,
         base_url="http://test",
-    )
+    ) as ac:
+        yield ac
