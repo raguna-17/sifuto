@@ -1,19 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import Layout from "./layouts/Layout";
 
 import LoginPage from "./features/auth/LoginPage";
 import RegisterPage from "./features/auth/RegisterPage";
 
 import Home from "./pages/Home";
-import JobApplicationPage from "./features/job_applications/JobApplicationPage";
-import JobPostingPage from "./features/job_postings/JobPostingPage";
-import JobPostingDetail from "./features/job_postings/JobPostingDetail";
-import OrganizationPage from "./features/organizations/OrganizationPage";
-import OrganizationDetail from "./features/organizations/OrganizationDetail";
+
+import ExpensePage from "./features/expenses/ExpensePage";
+import IncomePage from "./features/incomes/IncomePage";
+import CategoryPage from "./features/categories/CategoryPage";
 
 // 仮の認証チェック
 const isAuthenticated = () => {
-  return !!localStorage.getItem("token");//!!"abc" → true,!!null → false
+  return !!localStorage.getItem("token");
 };
 
 // 認証ガード
@@ -25,11 +25,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ログイン系（LayoutなしでもOK） */}
+        {/* ログイン関連 */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="organizations" element={<OrganizationPage />} />
-        <Route path="/organizations/:id" element={<OrganizationDetail />} />
 
         {/* 認証後ページ */}
         <Route
@@ -43,14 +41,18 @@ function App() {
           {/* ホーム */}
           <Route index element={<Home />} />
 
-          {/* 各ページ */}
-          <Route path="job-applications" element={<JobApplicationPage />} />
-          <Route path="job-postings" element={<JobPostingPage />} />   
-          <Route path="job-postings/:id" element={<JobPostingDetail />} />      
+          {/* 支出 */}
+          <Route path="expenses" element={<ExpensePage />} />
+
+          {/* 収入 */}
+          <Route path="incomes" element={<IncomePage />} />
+
+          {/* カテゴリ */}
+          <Route path="categories" element={<CategoryPage />} />
         </Route>
 
-        {/* それ以外はログインへ */}
-        <Route path="*" element={<Navigate to="/login" />} />
+        {/* 存在しないURL */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   );

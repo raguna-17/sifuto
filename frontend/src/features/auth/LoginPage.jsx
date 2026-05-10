@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { login } from "./api";
 
-const LoginPage = () => {//ログインページそのもの
-    const navigate = useNavigate();//ページ遷移用の関数
+import { login, getMe } from "./api";
 
-    const [email, setEmail] = useState("");//入力されたメール
+const LoginPage = () => {
+    const navigate = useNavigate();
+
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [error, setError] = useState("");//エラーメッセージ
+
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const validate = () => {
         if (!email || !password) {
@@ -15,65 +18,123 @@ const LoginPage = () => {//ログインページそのもの
         }
 
         if (!email.includes("@")) {
-            return "正しいメール形式で入力してください";
+            return "メール形式が正しくありません";
         }
 
         if (password.length < 4) {
-            return "パスワードは4文字以上";
+            return "パスワードは4文字以上です";
         }
 
-        return "";//OKなら「空文字」
+        return "";
     };
 
-    const handleSubmit = async (e) => {//ログイン処理の本体
-        e.preventDefault();//form送信時のページリロードを防ぎ、React側で制御するため
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        setError("");
 
         const errMsg = validate();
+
         if (errMsg) {
             setError(errMsg);
-            return;//エラーがあれば止める
+            return;
         }
 
         try {
-            const data = await login(email, password);//login APIに対してHTTPリクエスト（通常はPOST）を送り、認証結果としてアクセストークンを受け
-            localStorage.setItem("token", data.access_token);//次のAPIでAuthorizationヘッダーに使う
+            setLoading(true);
+
+            const data = await login(email, password);
+
+            localStorage.setItem(
+                "token",
+                data.access_token
+            );
+
+            if (data.refresh_token) {
+                localStorage.setItem(
+                    "refresh",
+                    data.refresh_token
+                );
+            }
+
+            const me = await getMe();
+
+            console.log("ログインユーザー:", me);
+
             navigate("/");
+
         } catch (err) {
-            setError("メールまたはパスワードが違います");
+            setError(err.message);
+
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div>
+        <div
+            style={{
+                maxWidth: "400px",
+                margin: "80px auto",
+            }}
+        >
             <h1>ログイン</h1>
 
-            {error && <p style={{ color: "red" }}>{error}</p>}
+            {error && (
+                <p style={{ color: "red" }}>
+                    {error}
+                </p>
+            )}
 
             <form onSubmit={handleSubmit}>
-                <input
-                    type="email"
-                    placeholder="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
+                <div style={{ marginBottom: "12px" }}>
+                    <input
+                        type="email"
+                        placeholder="メールアドレス"
+                        value={email}
+                        onChange={(e) =>
+                            setEmail(e.target.value)
+                        }
+                        style={{
+                            width: "100%",
+                            padding: "10px",
+                        }}
+                    />
+                </div>
 
-                <input
-                    type="password"
-                    placeholder="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+                <div style={{ marginBottom: "12px" }}>
+                    <input
+                        type="password"
+                        placeholder="パスワード"
+                        value={password}
+                        onChange={(e) =>
+                            setPassword(e.target.value)
+                        }
+                        style={{
+                            width: "100%",
+                            padding: "10px",
+                        }}
+                    />
+                </div>
 
-                <button type="submit">ログイン</button>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                        width: "100%",
+                        padding: "10px",
+                    }}
+                >
+                    {loading ? "ログイン中..." : "ログイン"}
+                </button>
             </form>
 
-            <p>
-                アカウントがない？{" "}
-                <Link to="/register">新規登録はこちら</Link>
-            </p>
-            <p>
-                法人の方は{" "}
-                <Link to="/organizations">こちら</Link>
+            <p style={{ marginTop: "16px" }}>
+                アカウントがない？
+                {" "}
+                <Link to="/register">
+                    新規登録はこちら
+                </Link>
             </p>
         </div>
     );

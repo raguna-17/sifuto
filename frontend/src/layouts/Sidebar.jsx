@@ -5,13 +5,14 @@ const Sidebar = () => {
 
     const menu = [
         { name: "ホーム", path: "/" },
-        { name: "応募履歴", path: "/job-applications" },
-        { name: "求人応募", path: "/job-postings" },
+        { name: "支出管理", path: "/expenses" },
+        { name: "収入管理", path: "/incomes" },
+        { name: "カテゴリ管理", path: "/categories" },
     ];
 
     return (
         <div style={styles.sidebar}>
-            <h2 style={styles.title}>求人アプリ</h2>
+            <h2 style={styles.title}>家計簿アプリ</h2>
 
             <nav>
                 {menu.map((item) => {
@@ -37,26 +38,31 @@ const Sidebar = () => {
 
 const styles = {
     sidebar: {
-        width: "200px",
+        width: "220px",
         height: "100vh",
         background: "#1e293b",
         color: "#fff",
         padding: "20px",
+        boxSizing: "border-box",
     },
     title: {
-        marginBottom: "20px",
+        marginBottom: "24px",
+        fontSize: "22px",
+        fontWeight: "bold",
     },
     link: {
         display: "block",
-        padding: "10px",
-        color: "#cbd5f5",
+        padding: "12px",
+        color: "#cbd5e1",
         textDecoration: "none",
-        borderRadius: "6px",
-        marginBottom: "8px",
+        borderRadius: "8px",
+        marginBottom: "10px",
+        transition: "0.2s",
     },
     active: {
         background: "#3b82f6",
         color: "#fff",
+        fontWeight: "bold",
     },
 };
 

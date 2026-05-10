@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+
 import { register } from "./api";
 
 const RegisterPage = () => {
     const navigate = useNavigate();
 
     const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const [password, setPassword] =
+        useState("");
+
     const [error, setError] = useState("");
+    const [loading, setLoading] =
+        useState(false);
 
     const validate = () => {
         if (!email || !password) {
@@ -15,11 +20,11 @@ const RegisterPage = () => {
         }
 
         if (!email.includes("@")) {
-            return "正しいメール形式で入力してください";
+            return "メール形式が正しくありません";
         }
 
         if (password.length < 4) {
-            return "パスワードは4文字以上";
+            return "パスワードは4文字以上です";
         }
 
         return "";
@@ -27,57 +32,99 @@ const RegisterPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(""); // リセット
+
+        setError("");
 
         const errMsg = validate();
+
         if (errMsg) {
             setError(errMsg);
             return;
         }
 
         try {
+            setLoading(true);
+
             await register(email, password);
 
-            alert("登録成功！ログインしてください");
+            alert(
+                "登録成功。ログインしてください。"
+            );
+
             navigate("/login");
 
         } catch (err) {
-            // 👇 ここがポイント
-            if (err.message.includes("already") || err.message.includes("exists")) {
-                setError("このメールアドレスは既に登録されています");
-            } else {
-                setError("登録に失敗しました");
-            }
+            setError(err.message);
+
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div>
+        <div
+            style={{
+                maxWidth: "400px",
+                margin: "80px auto",
+            }}
+        >
             <h1>新規登録</h1>
 
-            {error && <p style={{ color: "red" }}>{error}</p>}
+            {error && (
+                <p style={{ color: "red" }}>
+                    {error}
+                </p>
+            )}
 
             <form onSubmit={handleSubmit}>
-                <input
-                    type="email"
-                    placeholder="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
+                <div style={{ marginBottom: "12px" }}>
+                    <input
+                        type="email"
+                        placeholder="メールアドレス"
+                        value={email}
+                        onChange={(e) =>
+                            setEmail(e.target.value)
+                        }
+                        style={{
+                            width: "100%",
+                            padding: "10px",
+                        }}
+                    />
+                </div>
 
-                <input
-                    type="password"
-                    placeholder="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+                <div style={{ marginBottom: "12px" }}>
+                    <input
+                        type="password"
+                        placeholder="パスワード"
+                        value={password}
+                        onChange={(e) =>
+                            setPassword(e.target.value)
+                        }
+                        style={{
+                            width: "100%",
+                            padding: "10px",
+                        }}
+                    />
+                </div>
 
-                <button type="submit">登録</button>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                        width: "100%",
+                        padding: "10px",
+                    }}
+                >
+                    {loading ? "登録中..." : "登録"}
+                </button>
             </form>
 
-            <p>
-                すでにアカウントある？{" "}
-                <Link to="/login">ログインはこちら</Link>
+            <p style={{ marginTop: "16px" }}>
+                すでにアカウントある？
+                {" "}
+                <Link to="/login">
+                    ログインはこちら
+                </Link>
             </p>
         </div>
     );

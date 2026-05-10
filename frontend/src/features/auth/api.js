@@ -1,36 +1,47 @@
-const BASE_URL = import.meta.env.VITE_API_URL;
+import api from "../../api/axios";
 
+// ログイン
 export const login = async (email, password) => {
-    const res = await fetch(`${BASE_URL}/users/login`, {//HTTPリクエストを作って送ってるコード
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-    });
+    try {
+        const res = await api.post("/users/login", {
+            email,
+            password,
+        });
 
-    if (!res.ok) {//「200〜299以外ならエラーにする」コード
-        throw new Error("ログイン失敗");
+        return res.data;
+
+    } catch (err) {
+        throw new Error(
+            err.response?.data?.detail || "ログイン失敗"
+        );
     }
-
-    return res.json();
 };
 
+// 新規登録
 export const register = async (email, password) => {
-    const res = await fetch(`${BASE_URL}/users/register`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-    });
+    try {
+        const res = await api.post("/users/register", {
+            email,
+            password,
+        });
 
-    const data = await res.json(); // ← 先に読む
+        return res.data;
 
-    if (!res.ok) {
-        // 👇 ここが超重要
-        throw new Error(data.detail || "登録失敗");
+    } catch (err) {
+        throw new Error(
+            err.response?.data?.detail || "登録失敗"
+        );
     }
+};
 
-    return data;
-  };
+// 現在ユーザー取得
+export const getMe = async () => {
+    try {
+        const res = await api.get("/users/me");
+
+        return res.data;
+
+    } catch (err) {
+        throw new Error("ユーザー取得失敗");
+    }
+};

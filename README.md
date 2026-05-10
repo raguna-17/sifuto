@@ -1,179 +1,102 @@
-# 求人管理アプリ（Recruiting System）
-
-## 概要
-
-企業・求人・応募の採用プロセスを一元管理するWebアプリケーションです。
-実務の採用管理フローを意識し、単なるCRUDではなく**業務ロジックの実装と設計**に重点を置いて開発しました。
-
----
-
-## デモ動画
-
-![動画を見る](https://www.youtube.com/watch?v=8Cs9BbuQ9WY)
-
-## 実装した業務フロー
-
-* 企業の作成・管理
-* 求人の作成・管理
-* 求人への応募
-* 応募情報の管理（企業側・応募者側）
-
----
-
-## 業務ロジックの実装（重要ポイント）
-
-### 応募機能（job_applications）
-
-実務を意識し、以下の制御を実装しています：
-
-* 同一ユーザーによる重複応募を禁止
-* 応募ステータスの管理
-* ステータス遷移制御
-* データ整合性をアプリケーションレベルで担保
-
-#### ステータス遷移
-
-* applied → interview / rejected
-* interview → offer / rejected
-* offer / rejected → 変更不可
-
-不正な遷移はAPIレベルで制御しています。
-
----
-
-### 認可制御
-
-* 自分の応募のみ取得可能（応募者）
-* 自社求人の応募のみ取得可能（企業側）
-
----
-
-## アーキテクチャ設計
-
-ドメイン単位で分割したレイヤードアーキテクチャを採用しています。
-
-### ドメイン構成
-
-* users
-* organizations
-* job_postings
-* job_applications
-
-### レイヤー構造
-
-* Router：HTTPリクエスト処理
-* Service：ビジネスロジック
-* Repository：DBアクセス
-
----
-
-## 設計上のポイント
-
-* Service層に業務ロジックを集約し、API層から分離
-* Repository層でDBアクセスを抽象化し、変更容易性を確保
-* FastAPIのDependsによる依存性注入を活用
-* ステータス遷移による業務フロー制御を実装
-
----
-
-## API設計
-
-RESTfulな設計を意識しています。
-
-* `POST /job_applications/`
-  → 応募作成
-
-* `GET /job_applications/me`
-  → 自分の応募一覧
-
-* `GET /job_applications/job/{id}`
-  → 求人ごとの応募一覧（企業側）
-
-* `PUT /job_applications/{id}`
-  → ステータス更新
-
----
-
-## 技術スタック
-
-### Backend
-
-* FastAPI
-* SQLAlchemy（Async）
-* PostgreSQL
-* Alembic
-* Pydantic
-* JWT認証（python-jose）
-* Docker / Docker Compose
-
-### Frontend
-
-* React（Vite）
-* JavaScript
-* Axios
-
----
-
-## コードの見どころ
-
-### バックエンド（業務ロジック）
-
-* `app/recruiting/job_applications/service.py`
-* `app/recruiting/job_applications/repository.py`
-
-応募処理・ステータス管理・認可制御など、業務ロジックを実装しています。
-
----
-
-### フロントエンド（API連携）
-
-* `frontend/src/features/job_postings/JobPostingPage.jsx`
-
-求人一覧取得・作成・API連携の実装を確認できます。
-
----
-
-## インフラ構成
-
-* Dockerによる開発環境の統一
-* 環境変数による設定管理（DB接続・CORS）
-* PostgreSQLコンテナ
-* FastAPIコンテナ
-* Alembicによるマイグレーション管理
-
-
----
-## 🧪 テスト
-
-Pytestを用いてAPIテストを実装しています。
-
-- カバレッジ：約70%
-- 主に業務ロジック（job_applications）を重点的にテスト
-
-正常系・異常系の両方をカバーし、
-重複応募やステータス遷移などの業務ルールを検証しています。
----
-
-## 起動方法
-
-```bash
-docker compose up --build
-```
-
----
-
-## 今後の改善予定
-
-* 応募検索・フィルタ機能
-* UI/UX改善
-* テストコードの拡充
-* 権限管理の強化（ロール設計）
-
----
-
-## 開発背景
-
-求人サービスを利用する中で、
-「企業・求人・応募の流れを自分で設計・実装したい」と考えたことがきっかけです。
-
-業務フローを意識し、実務に近い形で設計しました。
+家計簿管理アプリ（Full Stack）
+■ 概要
+
+本アプリケーションは、支出・収入・カテゴリを分離設計したフルスタック家計簿管理システムです。
+React + FastAPI によるAPI分離構成を採用し、JWT認証・ドメイン駆動的なレイヤー分割（router / service / repository）で実装しています。
+
+■ 技術スタック
+Frontend
+React
+Vite
+React Router
+Axios
+Backend
+FastAPI
+SQLAlchemy
+Alembic
+Pydantic
+JWT認証（OAuth2 Password Flow）
+Database
+PostgreSQL
+Infrastructure
+Docker / Docker Compose
+Testing
+pytest
+■ アーキテクチャ設計
+フロントエンド設計
+featureベースディレクトリ構成
+API層とUI層の分離
+再利用可能な共通コンポーネント設計（Button / Input / Modal）
+バックエンド設計
+ドメイン単位でモジュール分割（users / finance）
+router / service / repository の責務分離
+ビジネスロジックをservice層に集約
+DBアクセスをrepository層に分離
+設計思想
+関心の分離（Separation of Concerns）
+スケーラビリティを意識した構造設計
+フロント・バックエンド完全分離構成
+■ 主な機能
+認証
+ユーザー登録
+JWTログイン認証
+ユーザー状態管理
+支出管理
+支出CRUD
+カテゴリ紐付け
+一覧取得
+収入管理
+収入CRUD
+一覧取得
+カテゴリ管理
+カテゴリCRUD
+■ API設計
+
+RESTful APIを採用し、リソース単位で設計。
+
+Auth
+POST /auth/register
+POST /auth/login
+Expenses
+GET /expenses
+POST /expenses
+PUT /expenses/{id}
+DELETE /expenses/{id}
+Incomes
+GET /incomes
+POST /incomes
+PUT /incomes/{id}
+DELETE /incomes/{id}
+Categories
+GET /categories
+POST /categories
+■ セットアップ
+Backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+Frontend
+npm install
+npm run dev
+Docker
+docker-compose up --build
+■ 環境変数
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+SECRET_KEY=your_secret_key
+ALGORITHM=HS256
+■ 工夫した点（ここ重要）
+ビジネスロジックをservice層へ分離
+DBアクセスをrepository層で統一管理
+feature単位でフロントを分割し保守性を向上
+JWT認証によるセキュアなAPI設計
+フロントとバックの完全分離構成
+■ 改善予定
+月次収支グラフの可視化
+カテゴリ別支出分析
+集計ダッシュボード追加
+本番環境デプロイ（Render / Railway / AWS）
+■ 採用観点でのポイント
+API設計とレイヤー分割の理解
+フルスタック構成の実装経験
+認証機構の実装経験
+Dockerによる開発環境構築
+スケーラブルなディレクトリ設計
