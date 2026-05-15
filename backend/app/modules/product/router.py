@@ -12,9 +12,11 @@ router = APIRouter(
     tags=["Products"],
 )
 
+
 # -------------------------
 # create product (admin)
 # -------------------------
+
 @router.post(
     "/",
     response_model=schema.ProductRead,
@@ -24,27 +26,26 @@ async def create_product(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role(UserRole.ADMIN)),
 ):
-    product, error = await service.create_product(
-        db=db,
-        name=payload.name,
-        description=payload.description,
-        price=payload.price,
-        stock=payload.stock,
-        image_url=payload.image_url,
-    )
-
-    if error:
+    try:
+        return await service.create_product(
+            db=db,
+            name=payload.name,
+            description=payload.description,
+            price=payload.price,
+            stock=payload.stock,
+            image_url=payload.image_url,
+        )
+    except service.InvalidProductData as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error,
+            detail=str(e),
         )
-
-    return product
 
 
 # -------------------------
 # get all active products
 # -------------------------
+
 @router.get(
     "/",
     response_model=list[schema.ProductRead],
@@ -58,6 +59,7 @@ async def get_products(
 # -------------------------
 # get product by id
 # -------------------------
+
 @router.get(
     "/{product_id}",
     response_model=schema.ProductRead,
@@ -66,20 +68,19 @@ async def get_product(
     product_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    product = await service.get_product_by_id(db, product_id)
-
-    if not product:
+    try:
+        return await service.get_product_by_id(db, product_id)
+    except service.ProductNotFound as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found",
+            detail=str(e),
         )
-
-    return product
 
 
 # -------------------------
 # update product (admin)
 # -------------------------
+
 @router.put(
     "/{product_id}",
     response_model=schema.ProductRead,
@@ -90,37 +91,35 @@ async def update_product(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role(UserRole.ADMIN)),
 ):
-    product = await service.get_product_by_id(db, product_id)
+    try:
+        product = await service.get_product_by_id(db, product_id)
 
-    if not product:
+        return await service.update_product(
+            db=db,
+            product=product,
+            name=payload.name,
+            description=payload.description,
+            price=payload.price,
+            stock=payload.stock,
+            image_url=payload.image_url,
+            is_active=payload.is_active,
+        )
+    except service.ProductNotFound as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found",
+            detail=str(e),
         )
-
-    updated_product, error = await service.update_product(
-        db=db,
-        product=product,
-        name=payload.name,
-        description=payload.description,
-        price=payload.price,
-        stock=payload.stock,
-        image_url=payload.image_url,
-        is_active=payload.is_active,
-    )
-
-    if error:
+    except service.InvalidProductData as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error,
+            detail=str(e),
         )
-
-    return updated_product
 
 
 # -------------------------
 # delete product (admin)
 # -------------------------
+
 @router.delete(
     "/{product_id}",
 )
@@ -129,14 +128,15 @@ async def delete_product(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role(UserRole.ADMIN)),
 ):
-    product = await service.get_product_by_id(db, product_id)
+    try:
+        product = await service.get_product_by_id(db, product_id)
 
-    if not product:
+        await service.delete_product(db, product)
+
+        return {"message": "Product deleted"}
+
+    except service.ProductNotFound as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found",
+            detail=str(e),
         )
-
-    await service.delete_product(db, product)
-
-    return {"message": "Product deleted"}

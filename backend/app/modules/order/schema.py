@@ -1,43 +1,45 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.enums import OrderStatus
+
 
 # -------------------------
-# 共通
+# OrderItem
 # -------------------------
 
-class OrderBase(BaseModel):
+class OrderItemBase(BaseModel):
     product_id: int
     quantity: int = Field(ge=1)
 
 
+class OrderItemResponse(OrderItemBase):
+    id: int
+    price_at_purchase: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # -------------------------
-# 作成
+# Order
 # -------------------------
 
-class OrderCreate(OrderBase):
-    pass
+class OrderCreate(BaseModel):
+    # カート or 複数商品前提
+    items: list[OrderItemBase] = Field(min_length=1)
 
-
-# -------------------------
-# 更新（ステータス変更用）
-# -------------------------
 
 class OrderUpdate(BaseModel):
-    status: str
+    status: OrderStatus
 
-
-# -------------------------
-# レスポンス
-# -------------------------
 
 class OrderResponse(BaseModel):
     id: int
     user_id: int
-    product_id: int
-    quantity: int
+    status: OrderStatus
     total_price: int
-    status: str
     created_at: datetime
+
+    items: list[OrderItemResponse]
 
     model_config = ConfigDict(from_attributes=True)

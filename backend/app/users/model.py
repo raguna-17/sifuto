@@ -1,8 +1,8 @@
 from datetime import datetime
 
 from sqlalchemy import String, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column,relationship
-from typing import List
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 from app.core.enums import UserRole
 
@@ -24,7 +24,7 @@ class User(Base):
         nullable=False,
     )
 
-    role: Mapped[UserRole] = mapped_column(
+    role: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default=UserRole.USER,
@@ -48,14 +48,17 @@ class User(Base):
         nullable=False,
     )
 
-    carts: Mapped[List["Cart"]] = relationship(
+    # -------------------------
+    # relationships
+    # -------------------------
+
+    cart: Mapped["Cart"] = relationship(
         "Cart",
         back_populates="user",
+        uselist=False,  # ここ重要：1ユーザー1カート
     )
 
-    orders: Mapped[List["Order"]] = relationship(
+    orders: Mapped[list["Order"]] = relationship(
         "Order",
         back_populates="user",
     )
-
-    

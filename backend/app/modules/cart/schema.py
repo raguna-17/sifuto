@@ -1,12 +1,12 @@
 from datetime import datetime
-from pydantic import BaseModel, Field,ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # -------------------------
 # 共通
 # -------------------------
 
-class CartBase(BaseModel):
+class CartItemBase(BaseModel):
     product_id: int
     quantity: int = Field(ge=1, default=1)
 
@@ -15,7 +15,7 @@ class CartBase(BaseModel):
 # 作成
 # -------------------------
 
-class CartCreate(CartBase):
+class CartItemCreate(CartItemBase):
     pass
 
 
@@ -23,7 +23,7 @@ class CartCreate(CartBase):
 # 更新
 # -------------------------
 
-class CartUpdate(BaseModel):
+class CartItemUpdate(BaseModel):
     quantity: int = Field(ge=1)
 
 
@@ -33,9 +33,9 @@ class CartUpdate(BaseModel):
 
 class CartItemResponse(BaseModel):
     id: int
-    user_id: int
+    cart_id: int
     product_id: int
     quantity: int
     created_at: datetime
 
-    model_config=ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)

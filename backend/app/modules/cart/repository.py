@@ -2,34 +2,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 
-from app.modules.cart.model import Cart
+from app.modules.cart.model import Cart, CartItem
 
 
 # -------------------------
-# 取得（ユーザーのカート一覧）
+# カート取得（ユーザー単位）
 # -------------------------
 
-async def get_cart_items(db: AsyncSession, user_id: int):
+async def get_cart_by_user(db: AsyncSession, user_id: int):
     stmt = (
         select(Cart)
         .where(Cart.user_id == user_id)
-        .options(selectinload(Cart.product))
-    )
-
-    result = await db.execute(stmt)
-    return result.scalars().all()
-
-
-# -------------------------
-# 単一取得（商品単位）
-# -------------------------
-
-async def get_cart_item(db: AsyncSession, user_id: int, product_id: int):
-    stmt = (
-        select(Cart)
-        .where(
-            Cart.user_id == user_id,
-            Cart.product_id == product_id,
+        .options(
+            selectinload(Cart.items).selectinload(CartItem.product)
         )
     )
 
@@ -38,38 +23,67 @@ async def get_cart_item(db: AsyncSession, user_id: int, product_id: int):
 
 
 # -------------------------
-# 作成
+# カート作成
 # -------------------------
 
-async def create_cart_item(db: AsyncSession, cart: Cart):
+async def create_cart(db: AsyncSession, user_id: int):
+    cart = Cart(user_id=user_id)
     db.add(cart)
     await db.flush()
     return cart
 
 
 # -------------------------
-# 更新（数量）
+# カートアイテム取得（単一）
 # -------------------------
 
-async def update_cart_quantity(db: AsyncSession, cart: Cart, quantity: int):
-    cart.quantity = quantity
+async def get_cart_item(db: AsyncSession, cart_id: int, product_id: int):
+    stmt = (
+        select(CartItem)
+        .where(
+            CartItem.cart_id == cart_id,
+            CartItem.product_id == product_id,
+        )
+    )
+
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+# -------------------------
+# カートアイテム作成
+# -------------------------
+
+async def create_cart_item(db: AsyncSession, cart_item: CartItem):
+    db.add(cart_item)
     await db.flush()
-    return cart
+    return cart_item
 
 
 # -------------------------
-# 削除（単品）
+# カートアイテム更新（数量のみ）
 # -------------------------
 
-async def delete_cart_item(db: AsyncSession, cart: Cart):
-    await db.delete(cart)
+async def update_cart_item_quantity(db: AsyncSession, cart_item: CartItem, quantity: int):
+    cart_item.quantity = quantity
+    await db.flush()
+    return cart_item
+
+
+# -------------------------
+# カートアイテム削除
+# -------------------------
+
+async def delete_cart_item(db: AsyncSession, cart_item: CartItem):
+    await db.delete(cart_item)
     await db.flush()
 
 
 # -------------------------
-# カート全削除
+# カート全削除（中身だけ）
 # -------------------------
 
-async def clear_cart(db: AsyncSession, user_id: int):
-    stmt = delete(Cart).where(Cart.user_id == user_id)
+async def clear_cart_items(db: AsyncSession, cart_id: int):
+    stmt = delete(CartItem).where(CartItem.cart_id == cart_id)
     await db.execute(stmt)
+    await db.flush()

@@ -6,33 +6,28 @@ from app.core.security import get_current_user
 
 from app.modules.cart import service
 from app.modules.cart.schema import (
-    CartCreate,
-    CartUpdate,
+    CartItemCreate,
+    CartItemUpdate,
     CartItemResponse,
 )
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 
-
-# -------------------------
-# カート一覧取得
-# -------------------------
-
 @router.get("/", response_model=list[CartItemResponse])
-async def get_cart_items(
+async def get_cart(
     db: AsyncSession = Depends(get_db),
     user = Depends(get_current_user),
 ):
-    return await service.get_cart(db, user.id)
+    cart = await service.get_cart(db, user.id)
 
+    if not cart:
+        return []
 
-# -------------------------
-# 商品追加
-# -------------------------
+    return cart.items
 
-@router.post("/", response_model=CartItemResponse)
+@router.post("/items", response_model=CartItemResponse)
 async def add_item_to_cart(
-    payload: CartCreate,
+    payload: CartItemCreate,
     db: AsyncSession = Depends(get_db),
     user = Depends(get_current_user),
 ):
@@ -43,15 +38,10 @@ async def add_item_to_cart(
         quantity=payload.quantity,
     )
 
-
-# -------------------------
-# 数量更新
-# -------------------------
-
-@router.patch("/{product_id}", response_model=CartItemResponse)
+@router.patch("/items/{product_id}", response_model=CartItemResponse)
 async def update_cart_item(
     product_id: int,
-    payload: CartUpdate,
+    payload: CartItemUpdate,
     db: AsyncSession = Depends(get_db),
     user = Depends(get_current_user),
 ):
@@ -67,12 +57,7 @@ async def update_cart_item(
 
     return result
 
-
-# -------------------------
-# 削除
-# -------------------------
-
-@router.delete("/{product_id}")
+@router.delete("/items/{product_id}")
 async def delete_cart_item(
     product_id: int,
     db: AsyncSession = Depends(get_db),
@@ -88,11 +73,6 @@ async def delete_cart_item(
         raise HTTPException(status_code=404, detail="Cart item not found")
 
     return {"message": "deleted"}
-
-
-# -------------------------
-# カート全削除
-# -------------------------
 
 @router.delete("/")
 async def clear_cart(

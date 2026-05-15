@@ -5,6 +5,41 @@ from app.modules.product.model import Product
 
 
 # -------------------------
+# Exceptions
+# -------------------------
+
+class ProductNotFound(Exception):
+    pass
+
+
+class InvalidProductData(Exception):
+    pass
+
+
+class InsufficientStock(Exception):
+    pass
+
+
+# -------------------------
+# validators
+# -------------------------
+
+def _validate_price(price: int):
+    if price < 0:
+        raise InvalidProductData("Price cannot be negative")
+
+
+def _validate_stock(stock: int):
+    if stock < 0:
+        raise InvalidProductData("Stock cannot be negative")
+
+
+def _validate_quantity(quantity: int):
+    if quantity <= 0:
+        raise InvalidProductData("Quantity must be greater than 0")
+
+
+# -------------------------
 # create product
 # -------------------------
 
@@ -15,13 +50,10 @@ async def create_product(
     price: int,
     stock: int,
     image_url: str | None,
-) -> tuple[Product | None, str | None]:
+) -> Product:
 
-    if price < 0:
-        return None, "Price cannot be negative"
-
-    if stock < 0:
-        return None, "Stock cannot be negative"
+    _validate_price(price)
+    _validate_stock(stock)
 
     product = Product(
         name=name,
@@ -32,31 +64,31 @@ async def create_product(
         is_active=True,
     )
 
-    created_product = await repository.create_product(db, product)
-
-    return created_product, None
+    return await repository.create(db, product)
 
 
 # -------------------------
-# get product by id
+# get product
 # -------------------------
 
 async def get_product_by_id(
     db: AsyncSession,
     product_id: int,
-) -> Product | None:
+) -> Product:
 
-    return await repository.get_product_by_id(db, product_id)
+    product = await repository.get_product_by_id(db, product_id)
+
+    if product is None:
+        raise ProductNotFound(f"Product {product_id} not found")
+
+    return product
 
 
 # -------------------------
-# get all active products
+# list active products
 # -------------------------
 
-async def get_all_active_products(
-    db: AsyncSession,
-):
-
+async def get_all_active_products(db: AsyncSession) -> list[Product]:
     return await repository.get_all_active_products(db)
 
 
@@ -73,13 +105,10 @@ async def update_product(
     stock: int,
     image_url: str | None,
     is_active: bool,
-) -> tuple[Product | None, str | None]:
+) -> Product:
 
-    if price < 0:
-        return None, "Price cannot be negative"
-
-    if stock < 0:
-        return None, "Stock cannot be negative"
+    _validate_price(price)
+    _validate_stock(stock)
 
     product.name = name
     product.description = description
@@ -88,21 +117,19 @@ async def update_product(
     product.image_url = image_url
     product.is_active = is_active
 
-    updated_product = await repository.update_product(db, product)
-
-    return updated_product, None
+    return await repository.save(db, product)
 
 
 # -------------------------
-# soft delete product
+# soft delete
 # -------------------------
 
 async def delete_product(
     db: AsyncSession,
     product: Product,
-):
+) -> Product:
 
-    return await repository.delete_product(db, product)
+    return await repository.soft_delete(db, product)
 
 
 # -------------------------
@@ -113,16 +140,13 @@ async def decrease_stock(
     db: AsyncSession,
     product: Product,
     quantity: int,
-) -> tuple[Product | None, str | None]:
+) -> Product:
 
-    if quantity <= 0:
-        return None, "Quantity must be greater than 0"
+    _validate_quantity(quantity)
 
     if product.stock < quantity:
-        return None, "Not enough stock"
+        raise InsufficientStock("Not enough stock")
 
     product.stock -= quantity
 
-    updated_product = await repository.update_product(db, product)
-
-    return updated_product, None
+    return await repository.save(db, product)
