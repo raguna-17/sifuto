@@ -30,7 +30,7 @@ class Order(Base):
         nullable=False,
     )
 
-    status: Mapped[str] = mapped_column(
+    status: Mapped[OrderStatus] = mapped_column(
         String(20),
         nullable=False,
         default=OrderStatus.PENDING,

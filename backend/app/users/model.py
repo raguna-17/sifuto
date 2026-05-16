@@ -24,7 +24,7 @@ class User(Base):
         nullable=False,
     )
 
-    role: Mapped[str] = mapped_column(
+    role: Mapped[UserRole] = mapped_column(
         String(20),
         nullable=False,
         default=UserRole.USER,

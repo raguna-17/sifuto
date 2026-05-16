@@ -71,7 +71,7 @@ async def get_order_detail(
 
 
 # =========================================================
-# 👤 ユーザー：キャンセル
+# 👤 ユーザー：キャンセル（削除扱い）
 # =========================================================
 
 @router.delete("/{order_id}")
@@ -93,7 +93,7 @@ async def cancel_order(
 
 
 # =========================================================
-# 🛠 ADMIN
+# 🛠 ADMIN：全注文取得
 # =========================================================
 
 @router.get("/admin/all", response_model=list[OrderResponse])
@@ -104,9 +104,9 @@ async def get_all_orders(
     return await service.get_all_orders(db)
 
 
-# -------------------------
-# ステータス更新
-# -------------------------
+# =========================================================
+# 🛠 ADMIN：ステータス更新
+# =========================================================
 
 @router.patch("/admin/{order_id}/status", response_model=OrderResponse)
 async def update_order_status(
@@ -122,14 +122,14 @@ async def update_order_status(
     )
 
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(status_code=404, detail="Order not found or invalid transition")
 
     return order
 
 
-# -------------------------
-# 削除
-# -------------------------
+# =========================================================
+# 🛠 ADMIN：削除
+# =========================================================
 
 @router.delete("/admin/{order_id}")
 async def delete_order(

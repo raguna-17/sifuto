@@ -5,7 +5,7 @@ from app.modules.product.model import Product
 
 
 # -------------------------
-# Exceptions
+# exceptions
 # -------------------------
 
 class ProductNotFound(Exception):
@@ -21,7 +21,7 @@ class InsufficientStock(Exception):
 
 
 # -------------------------
-# validators
+# validation
 # -------------------------
 
 def _validate_price(price: int):
@@ -34,13 +34,13 @@ def _validate_stock(stock: int):
         raise InvalidProductData("Stock cannot be negative")
 
 
-def _validate_quantity(quantity: int):
-    if quantity <= 0:
+def _validate_quantity(qty: int):
+    if qty <= 0:
         raise InvalidProductData("Quantity must be greater than 0")
 
 
 # -------------------------
-# create product
+# create
 # -------------------------
 
 async def create_product(
@@ -64,36 +64,32 @@ async def create_product(
         is_active=True,
     )
 
-    return await repository.create(db, product)
-
-
-# -------------------------
-# get product
-# -------------------------
-
-async def get_product_by_id(
-    db: AsyncSession,
-    product_id: int,
-) -> Product:
-
-    product = await repository.get_product_by_id(db, product_id)
-
-    if product is None:
-        raise ProductNotFound(f"Product {product_id} not found")
+    await repository.create(db, product)
+    await db.commit()
+    await db.refresh(product)
 
     return product
 
 
 # -------------------------
-# list active products
+# read
 # -------------------------
+
+async def get_product_by_id(db: AsyncSession, product_id: int) -> Product:
+    product = await repository.get_by_id(db, product_id)
+
+    if not product:
+        raise ProductNotFound()
+
+    return product
+
 
 async def get_all_active_products(db: AsyncSession) -> list[Product]:
-    return await repository.get_all_active_products(db)
+    return await repository.get_all_active(db)
 
 
 # -------------------------
-# update product
+# update
 # -------------------------
 
 async def update_product(
@@ -117,36 +113,43 @@ async def update_product(
     product.image_url = image_url
     product.is_active = is_active
 
-    return await repository.save(db, product)
+    await repository.save(db, product)
+    await db.commit()
+    await db.refresh(product)
+
+    return product
 
 
 # -------------------------
-# soft delete
+# delete (soft)
 # -------------------------
 
-async def delete_product(
-    db: AsyncSession,
-    product: Product,
-) -> Product:
+async def delete_product(db: AsyncSession, product: Product) -> Product:
 
-    return await repository.soft_delete(db, product)
+    product.is_active = False
+
+    await repository.soft_delete(db, product)
+    await db.commit()
+    await db.refresh(product)
+
+    return product
 
 
 # -------------------------
-# decrease stock
+# stock
 # -------------------------
 
 async def decrease_stock(
     db: AsyncSession,
-    product: Product,
+    product_id: int,
     quantity: int,
-) -> Product:
+) -> None:
 
     _validate_quantity(quantity)
 
-    if product.stock < quantity:
-        raise InsufficientStock("Not enough stock")
+    ok = await repository.decrease_stock(db, product_id, quantity)
 
-    product.stock -= quantity
+    if not ok:
+        raise InsufficientStock()
 
-    return await repository.save(db, product)
+    await db.commit()

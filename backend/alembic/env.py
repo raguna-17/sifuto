@@ -11,12 +11,10 @@ from alembic import context
 from app.core.config import get_settings
 from app.db.base import Base
 
-# models import
-from app.users import model
-
-from app.modules.product import model
-from app.modules.cart import model
-from app.modules.order import model
+from app.users.model import User
+from app.modules.product.model import Product
+from app.modules.cart.model import Cart
+from app.modules.order.model import Order
 
 
 settings = get_settings()

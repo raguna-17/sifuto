@@ -1,13 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.order import repository
-from app.modules.product.repository import get_product_by_id
+from app.modules.product.repository import get_by_id
 from app.modules.order.model import Order, OrderItem
 from app.core.enums import OrderStatus
 
 
 # =========================================================
-# 注文作成（コアビジネスロジック）
+# 注文作成（トランザクション安全版）
 # =========================================================
 
 async def create_order(
@@ -15,61 +15,73 @@ async def create_order(
     user_id: int,
     items: list[dict],  # [{"product_id": 1, "quantity": 2}]
 ):
-    if not items:
-        return None
-
-    order_items: list[OrderItem] = []
-    total_price = 0
-
-    # -------------------------
-    # 商品チェック & 金額計算
-    # -------------------------
-    for item in items:
-        product = await get_product_by_id(db, item["product_id"])
-
-        if not product:
+    try:
+        if not items:
             return None
 
-        if product.stock < item["quantity"]:
-            return None
+        # -------------------------
+        # 事前検証（読み取りフェーズ）
+        # -------------------------
+        products_to_use = []
+        total_price = 0
 
-        price = product.price * item["quantity"]
-        total_price += price
+        for item in items:
+            product = await get_by_id(db, item["product_id"])
 
-        order_items.append(
-            OrderItem(
-                product_id=product.id,
-                quantity=item["quantity"],
-                price_at_purchase=product.price,
-            )
+            if not product:
+                raise ValueError("product not found")
+
+            if product.stock < item["quantity"]:
+                raise ValueError("insufficient stock")
+
+            products_to_use.append((product, item["quantity"]))
+            total_price += product.price * item["quantity"]
+
+        # -------------------------
+        # Order作成（まだ副作用なし）
+        # -------------------------
+        order = Order(
+            user_id=user_id,
+            status=OrderStatus.PENDING,
+            total_price=total_price,
         )
 
-        # 在庫減少
-        product.stock -= item["quantity"]
+        await repository.add_order(db, order)
 
-    # -------------------------
-    # Order作成（ヘッダー）
-    # -------------------------
-    order = Order(
-        user_id=user_id,
-        status=OrderStatus.PENDING,
-        total_price=total_price,
-    )
+        # -------------------------
+        # OrderItem作成（関連付けのみ）
+        # -------------------------
+        order_items = []
 
-    await repository.add_order(db, order)
+        for product, qty in products_to_use:
+            order_items.append(
+                OrderItem(
+                    order_id=order.id,
+                    product_id=product.id,
+                    quantity=qty,
+                    price_at_purchase=product.price,
+                )
+            )
 
-    # -------------------------
-    # OrderItem作成（明細）
-    # -------------------------
-    for item in order_items:
-        item.order_id = order.id
+        await repository.add_items(db, order_items)
 
-    await repository.add_items(db, order_items)
+        # -------------------------
+        # 副作用フェーズ（ここで初めて状態変更）
+        # -------------------------
+        for product, qty in products_to_use:
+            product.stock -= qty
 
-    await db.commit()
-    await db.refresh(order)
+        # -------------------------
+        # commit（唯一の確定ポイント）
+        # -------------------------
+        await db.commit()
+        await db.refresh(order)
 
-    return order
+        return order
+
+    except Exception:
+        await db.rollback()
+        raise
 
 
 # =========================================================
@@ -101,7 +113,7 @@ async def get_order_detail(
 
 
 # =========================================================
-# ステータス更新（管理 or 制御ロジック）
+# ステータス更新（安全なトランザクション）
 # =========================================================
 
 async def update_order_status(
@@ -109,45 +121,58 @@ async def update_order_status(
     order_id: int,
     status: OrderStatus,
 ):
-    order = await repository.get_order_by_id(db, order_id)
+    try:
+        order = await repository.get_order_by_id(db, order_id)
 
-    if not order:
-        return None
+        if not order:
+            return None
 
-    # 状態遷移ルール（必要ならここに追加）
-    allowed_transitions = {
-        OrderStatus.PENDING: [OrderStatus.PAID, OrderStatus.CANCELLED],
-        OrderStatus.PAID: [OrderStatus.SHIPPED],
-        OrderStatus.SHIPPED: [],
-        OrderStatus.CANCELLED: [],
-    }
+        allowed_transitions = {
+            OrderStatus.PENDING: [OrderStatus.PAID, OrderStatus.CANCELLED],
+            OrderStatus.PAID: [OrderStatus.SHIPPED],
+            OrderStatus.SHIPPED: [],
+            OrderStatus.CANCELLED: [],
+        }
 
-    if status not in allowed_transitions.get(order.status, []):
-        return None
+        if status not in allowed_transitions.get(order.status, []):
+            return None
 
-    return await repository.update_order_status(db, order, status)
+        order.status = status
+
+        await db.commit()
+        await db.refresh(order)
+
+        return order
+
+    except Exception:
+        await db.rollback()
+        raise
 
 
 # =========================================================
-# 削除（管理用）
+# 削除（安全版）
 # =========================================================
 
 async def delete_order(db: AsyncSession, order_id: int):
-    order = await repository.get_order_by_id(db, order_id)
+    try:
+        order = await repository.get_order_by_id(db, order_id)
 
-    if not order:
-        return False
+        if not order:
+            return False
 
-    # 明細も削除
-    await repository.delete_items_by_order_id(db, order.id)
-    await repository.delete_order(db, order)
+        await repository.delete_items_by_order_id(db, order.id)
+        await repository.delete_order(db, order)
 
-    await db.commit()
-    return True
+        await db.commit()
+        return True
+
+    except Exception:
+        await db.rollback()
+        raise
 
 
 # =========================================================
-# 管理用：全注文
+# 管理用
 # =========================================================
 
 async def get_all_orders(db: AsyncSession):

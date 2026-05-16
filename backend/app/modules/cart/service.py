@@ -1,113 +1,130 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 
-from app.modules.cart import repository as cart_repo
 from app.modules.cart.model import Cart, CartItem
 
+
+# -------------------------
+# カート取得（中身込み）
+# -------------------------
 async def get_cart(db: AsyncSession, user_id: int):
-    cart = await cart_repo.get_cart_by_user(db, user_id)
+    stmt = (
+        select(Cart)
+        .where(Cart.user_id == user_id)
+        .options(selectinload(Cart.items).selectinload(CartItem.product))
+    )
 
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+# -------------------------
+# カートアイテム一覧
+# -------------------------
+async def get_cart_items(db: AsyncSession, user_id: int):
+    cart = await get_cart(db, user_id)
     if not cart:
-        return None
+        return []
+    return cart.items
 
+
+# -------------------------
+# カート作成
+# -------------------------
+async def create_cart(db: AsyncSession, user_id: int):
+    cart = Cart(user_id=user_id)
+    db.add(cart)
+    await db.flush()
     return cart
 
-async def add_to_cart(
-    db: AsyncSession,
-    user_id: int,
-    product_id: int,
-    quantity: int,
-):
-    # 1. カート取得 or 作成
-    cart = await cart_repo.get_cart_by_user(db, user_id)
+
+# -------------------------
+# カートアイテム取得
+# -------------------------
+async def get_cart_item(db: AsyncSession, cart_id: int, product_id: int):
+    stmt = select(CartItem).where(
+        CartItem.cart_id == cart_id,
+        CartItem.product_id == product_id,
+    )
+
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+# -------------------------
+# 追加
+# -------------------------
+async def add_to_cart(db: AsyncSession, user_id: int, product_id: int, quantity: int):
+    cart = await get_cart(db, user_id)
 
     if not cart:
-        cart = await cart_repo.create_cart(db, user_id)
+        cart = await create_cart(db, user_id)
 
-    # 2. 既存アイテム確認
-    item = await cart_repo.get_cart_item(db, cart.id, product_id)
+    item = await get_cart_item(db, cart.id, product_id)
 
     if item:
-        # 3. 既存なら数量加算
-        new_qty = item.quantity + quantity
-        result = await cart_repo.update_cart_item_quantity(db, item, new_qty)
+        item.quantity += quantity
+        result = item
     else:
-        # 4. 新規追加
-        new_item = CartItem(
+        result = CartItem(
             cart_id=cart.id,
             product_id=product_id,
             quantity=quantity,
         )
-        result = await cart_repo.create_cart_item(db, new_item)
+        db.add(result)
 
-    # 5. 永続化
     await db.commit()
     await db.refresh(result)
-
     return result
 
-async def update_cart(
-    db: AsyncSession,
-    user_id: int,
-    product_id: int,
-    quantity: int,
-):
-    # 1. カート取得
-    cart = await cart_repo.get_cart_by_user(db, user_id)
 
+# -------------------------
+# 更新
+# -------------------------
+async def update_cart_item(db: AsyncSession, user_id: int, product_id: int, quantity: int):
+    cart = await get_cart(db, user_id)
     if not cart:
         return None
 
-    # 2. アイテム取得
-    item = await cart_repo.get_cart_item(db, cart.id, product_id)
-
+    item = await get_cart_item(db, cart.id, product_id)
     if not item:
         return None
 
-    # 3. 更新
-    result = await cart_repo.update_cart_item_quantity(db, item, quantity)
+    item.quantity = quantity
 
-    # 4. commit
     await db.commit()
-    await db.refresh(result)
+    await db.refresh(item)
+    return item
 
-    return result
 
-async def remove_from_cart(
-    db: AsyncSession,
-    user_id: int,
-    product_id: int,
-):
-    # 1. カート取得
-    cart = await cart_repo.get_cart_by_user(db, user_id)
-
+# -------------------------
+# 削除
+# -------------------------
+async def remove_from_cart(db: AsyncSession, user_id: int, product_id: int):
+    cart = await get_cart(db, user_id)
     if not cart:
         return False
 
-    # 2. アイテム取得
-    item = await cart_repo.get_cart_item(db, cart.id, product_id)
-
+    item = await get_cart_item(db, cart.id, product_id)
     if not item:
         return False
 
-    # 3. 削除
-    await cart_repo.delete_cart_item(db, item)
-
-    # 4. commit
+    await db.delete(item)
     await db.commit()
-
     return True
 
-async def clear_cart(db: AsyncSession, user_id: int):
-    # 1. カート取得
-    cart = await cart_repo.get_cart_by_user(db, user_id)
 
+# -------------------------
+# 全削除
+# -------------------------
+async def clear_cart(db: AsyncSession, user_id: int):
+    cart = await get_cart(db, user_id)
     if not cart:
         return True
 
-    # 2. アイテム全削除
-    await cart_repo.clear_cart_items(db, cart.id)
+    stmt = delete(CartItem).where(CartItem.cart_id == cart.id)
+    await db.execute(stmt)
 
-    # 3. commit
     await db.commit()
-
     return True

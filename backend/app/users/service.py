@@ -1,6 +1,6 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.users import repository
 from app.users.model import User
 from app.core.enums import UserRole
 from app.core.security import (
@@ -10,18 +10,49 @@ from app.core.security import (
     create_refresh_token,
 )
 
+# ==================================================
+# DB access (旧 repositoryの中身)
+# ==================================================
 
-# -------------------------
-# user create
-# -------------------------
+async def get_by_email(db: AsyncSession, email: str) -> User | None:
+    stmt = select(User).where(User.email == email)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_by_id(db: AsyncSession, user_id: int) -> User | None:
+    stmt = select(User).where(User.id == user_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_active_by_email(db: AsyncSession, email: str) -> User | None:
+    stmt = select(User).where(
+        User.email == email,
+        User.is_active == True
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def create(db: AsyncSession, user: User) -> User:
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+# ==================================================
+# Usecase / Service layer
+# ==================================================
 
 async def create_user(
     db: AsyncSession,
     email: str,
     password: str,
 ) -> tuple[User | None, str | None]:
-    existing = await repository.get_user_by_email(db, email)
 
+    existing = await get_by_email(db, email)
     if existing:
         return None, "Email already registered"
 
@@ -32,43 +63,21 @@ async def create_user(
         is_active=True,
     )
 
-    created_user = await repository.create_user(db, user)
-
+    created_user = await create(db, user)
     return created_user, None
 
-
-# -------------------------
-# login
-# -------------------------
 
 async def login_user(
     db: AsyncSession,
     email: str,
     password: str,
-):
-    print("===== LOGIN START =====")
-    print("input email:", email)
-    print("input password:", password)
+) -> tuple[dict | None, str | None]:
 
-    user = await repository.get_user_by_email(db, email)
-
-    print("user:", user)
-
+    user = await get_active_by_email(db, email)
     if not user:
-        print("USER NOT FOUND")
         return None, "Invalid credentials"
 
-    print("db hashed password:", user.hashed_password)
-
-    verified = verify_password(
-        password,
-        user.hashed_password,
-    )
-
-    print("password verified:", verified)
-
-    if not verified:
-        print("PASSWORD VERIFY FAILED")
+    if not verify_password(password, user.hashed_password):
         return None, "Invalid credentials"
 
     access_token = create_access_token(
@@ -79,8 +88,6 @@ async def login_user(
         data={"sub": str(user.id)}
     )
 
-    print("LOGIN SUCCESS")
-
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -88,17 +95,16 @@ async def login_user(
     }, None
 
 
-# -------------------------
-# get user
-# -------------------------
+async def get_user_by_id_service(
+    db: AsyncSession,
+    user_id: int,
+) -> User | None:
+    return await get_by_id(db, user_id)
 
-async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
-    return await repository.get_user_by_id(db, user_id)
 
-
-# -------------------------
-# role check (pure logic)
-# -------------------------
+# ==================================================
+# Domain helper
+# ==================================================
 
 def is_admin(user: User) -> bool:
     return user.role == UserRole.ADMIN

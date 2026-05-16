@@ -6,6 +6,7 @@ from app.users import schema, service
 from app.core.security import get_current_user
 from app.users.model import User, UserRole
 
+
 router = APIRouter(
     prefix="/users",
     tags=["Users"],
@@ -15,6 +16,7 @@ router = APIRouter(
 # -------------------------
 # register
 # -------------------------
+
 @router.post(
     "/register",
     response_model=schema.UserResponse,
@@ -41,6 +43,7 @@ async def register(
 # -------------------------
 # login
 # -------------------------
+
 @router.post(
     "/login",
     response_model=schema.Token,
@@ -65,8 +68,9 @@ async def login(
 
 
 # -------------------------
-# current user
+# me
 # -------------------------
+
 @router.get(
     "/me",
     response_model=schema.UserResponse,
@@ -80,6 +84,7 @@ async def read_me(
 # -------------------------
 # get user by id (admin only)
 # -------------------------
+
 @router.get(
     "/{user_id}",
     response_model=schema.UserResponse,
