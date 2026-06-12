@@ -31,15 +31,9 @@ class UserInactiveError(Exception):
 class UserService:
 
     @staticmethod
-    async def create_user(
-        db: AsyncSession,
-        user_in: UserCreate,
-    ) -> User:
-
+    async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
         existing_user = await db.scalar(
-            select(User).where(
-                User.email == user_in.email
-            )
+            select(User).where(User.email == user_in.email)
         )
 
         if existing_user:
@@ -47,19 +41,22 @@ class UserService:
 
         user = User(
             email=user_in.email,
-            hashed_password=hash_password(
-                user_in.password
-            ),
+            hashed_password=hash_password(user_in.password),
             role=UserRole.USER,
             is_active=True,
         )
 
         try:
             db.add(user)
-
             await db.commit()
-            await db.refresh(user)
 
+            stmt = (
+                select(User)
+                .options(selectinload(User.positions))
+                .where(User.id == user.id)
+            )
+
+            user = await db.scalar(stmt)
             return user
 
         except Exception:
