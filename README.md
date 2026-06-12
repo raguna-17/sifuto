@@ -1,3 +1,13 @@
+① users
+② positions
+③ shift_slots
+④ shift_preferences
+⑤ shift_assignments
+⑥ scheduler
+
+
+
+
 # EC App
 
 FastAPI + React + PostgreSQL を用いて開発した EC サービスです。

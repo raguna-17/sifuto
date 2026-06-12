@@ -1,16 +1,36 @@
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    String,
+    Boolean,
+    ForeignKey,
+    Table,
+    Column,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.core.enums import UserRole
 
 
+# ==================================================
+# 中間テーブル（User ⇄ Position）
+# ==================================================
+user_positions = Table(
+    "user_positions",
+    Base.metadata,
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("position_id", ForeignKey("positions.id"), primary_key=True),
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     email: Mapped[str] = mapped_column(
         String(255),
@@ -25,12 +45,13 @@ class User(Base):
     )
 
     role: Mapped[UserRole] = mapped_column(
-        String(20),
+        Enum(UserRole),
         nullable=False,
         default=UserRole.USER,
     )
 
     is_active: Mapped[bool] = mapped_column(
+        Boolean,
         nullable=False,
         default=True,
     )
@@ -48,17 +69,24 @@ class User(Base):
         nullable=False,
     )
 
-    # -------------------------
+    # ==================================================
     # relationships
-    # -------------------------
+    # ==================================================
 
-    cart: Mapped["Cart"] = relationship(
-        "Cart",
+    preferences = relationship(
+        "ShiftPreference",
         back_populates="user",
-        uselist=False,  # ここ重要：1ユーザー1カート
+        cascade="all, delete-orphan",
     )
 
-    orders: Mapped[list["Order"]] = relationship(
-        "Order",
+    assignments = relationship(
+        "ShiftAssignment",
         back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    positions = relationship(
+        "Position",
+        secondary=user_positions,
+        back_populates="users",
     )
