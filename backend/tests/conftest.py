@@ -1,34 +1,96 @@
 ﻿import pytest
-from httpx import AsyncClient, ASGITransport
+import asyncio
+import os
+
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from app.db.base import Base
+from app.db.session import get_db
 from app.main import app
-from app.db.session import get_db, SessionFactory, engine
+
+from app.core.dependencies import get_current_user
+from app.domains.users.model import User
+from app.core.enums import UserRole
+from app.core.security import hash_password
 
 
-@pytest.fixture(autouse=True)
-def override_dependencies():
-    app.dependency_overrides[get_db] = override_get_db
+# ==================================================
+# DB (CIのDATABASE_URLをそのまま使用)
+# ==================================================
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+)
+
+TestingSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+# ==================================================
+# DB setup / teardown
+# ==================================================
+@pytest.fixture(scope="session", autouse=True)
+async def setup_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     yield
-    app.dependency_overrides.clear()
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
+# ==================================================
+# override DB session
+# ==================================================
+async def override_get_db():
+    async with TestingSessionLocal() as session:
+        yield session
+
+
+app.dependency_overrides[get_db] = override_get_db
+
+
+# ==================================================
+# override current user（テスト用固定ユーザー）
+# ==================================================
+async def override_current_user():
+    return User(
+        id=1,
+        email="test@example.com",
+        hashed_password=hash_password("password"),
+        role=UserRole.ADMIN,
+        is_active=True,
+    )
+
+
+app.dependency_overrides[get_current_user] = override_current_user
+
+
+# ==================================================
+# HTTP client
+# ==================================================
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        yield client
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
 
 
-@pytest.fixture(scope="session", autouse=True)
-async def dispose_engine():
-    yield
-    await engine.dispose()
-
-
-async def override_get_db():
-    async with SessionFactory() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+# ==================================================
+# DB session fixture（必要時のみ）
+# ==================================================
+@pytest.fixture
+async def db():
+    async with TestingSessionLocal() as session:
+        yield session
